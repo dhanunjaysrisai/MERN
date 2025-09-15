@@ -1,8 +1,8 @@
 const express = require('express');
-const Evaluation = require('../models/Evaluation');
-const Student = require('../models/Student');
-const Guide = require('../models/Guide');
-const { auth, authorize } = require('../middleware/auth');
+const Evaluation = require('../models/Evaluation.cjs');
+const Student = require('../models/Student.cjs');
+const Guide = require('../models/Guide.cjs');
+const { auth, authorize } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 
@@ -91,7 +91,7 @@ router.post('/', auth, authorize('guide'), async (req, res) => {
     }
 
     // Verify guide is assigned to this team
-    const Team = require('../models/Team');
+    const Team = require('../models/Team.cjs');
     const team = await Team.findById(teamId);
     if (!team || team.guide?.toString() !== guide._id.toString()) {
       return res.status(403).json({ message: 'You can only evaluate your assigned teams' });
@@ -248,7 +248,7 @@ router.get('/team/:teamId/summary', auth, async (req, res) => {
       }
     } else if (req.user.role === 'guide') {
       const guide = await Guide.findOne({ user: req.user._id });
-      const Team = require('../models/Team');
+      const Team = require('../models/Team.cjs');
       const team = await Team.findById(teamId);
       if (!guide || team.guide?.toString() !== guide._id.toString()) {
         return res.status(403).json({ message: 'Access denied' });
