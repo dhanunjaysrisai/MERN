@@ -45,9 +45,14 @@ app.use('/uploads', express.static('uploads'));
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fyp-management', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
 })
 .then(() => console.log('MongoDB connected successfully'))
-.catch(err => console.error('MongoDB connection error:', err));
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+  console.log('Continuing without database connection - some features may not work');
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
