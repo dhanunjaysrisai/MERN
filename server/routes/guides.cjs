@@ -136,7 +136,6 @@ router.delete('/:id', auth, authorize('principal'), async (req, res) => {
 
     // Remove guide from assigned teams
     if (guide.assignedTeams.length > 0) {
-      const Team = require('../models/Team');
       const Team = require('../models/Team.cjs');
       await Team.updateMany(
         { _id: { $in: guide.assignedTeams } },
