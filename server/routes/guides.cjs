@@ -1,7 +1,7 @@
 const express = require('express');
-const Guide = require('../models/Guide');
-const User = require('../models/User');
-const { auth, authorize } = require('../middleware/auth');
+const Guide = require('../models/Guide.cjs');
+const User = require('../models/User.cjs');
+const { auth, authorize } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 
@@ -137,6 +137,7 @@ router.delete('/:id', auth, authorize('principal'), async (req, res) => {
     // Remove guide from assigned teams
     if (guide.assignedTeams.length > 0) {
       const Team = require('../models/Team');
+      const Team = require('../models/Team.cjs');
       await Team.updateMany(
         { _id: { $in: guide.assignedTeams } },
         { $unset: { guide: 1 } }

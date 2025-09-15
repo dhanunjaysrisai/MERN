@@ -7,13 +7,13 @@ const morgan = require('morgan');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const teamRoutes = require('./routes/teams');
-const studentRoutes = require('./routes/students');
-const guideRoutes = require('./routes/guides');
-const weeklyLogRoutes = require('./routes/weeklyLogs');
-const documentRoutes = require('./routes/documents');
-const evaluationRoutes = require('./routes/evaluations');
+const userRoutes = require('./routes/users.cjs');
+const teamRoutes = require('./routes/teams.cjs');
+const studentRoutes = require('./routes/students.cjs');
+const guideRoutes = require('./routes/guides.cjs');
+const weeklyLogRoutes = require('./routes/weeklyLogs.cjs');
+const documentRoutes = require('./routes/documents.cjs');
+const evaluationRoutes = require('./routes/evaluations.cjs');
 
 const app = express();
 

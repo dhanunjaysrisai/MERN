@@ -1,8 +1,8 @@
 const express = require('express');
-const Team = require('../models/Team');
-const Student = require('../models/Student');
-const Guide = require('../models/Guide');
-const { auth, authorize } = require('../middleware/auth');
+const Team = require('../models/Team.cjs');
+const Student = require('../models/Student.cjs');
+const Guide = require('../models/Guide.cjs');
+const { auth, authorize } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 

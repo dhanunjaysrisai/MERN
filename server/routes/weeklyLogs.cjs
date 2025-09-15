@@ -1,9 +1,9 @@
 const express = require('express');
-const WeeklyLog = require('../models/WeeklyLog');
-const Student = require('../models/Student');
-const Guide = require('../models/Guide');
-const upload = require('../middleware/upload');
-const { auth, authorize } = require('../middleware/auth');
+const WeeklyLog = require('../models/WeeklyLog.cjs');
+const Student = require('../models/Student.cjs');
+const Guide = require('../models/Guide.cjs');
+const upload = require('../middleware/upload.cjs');
+const { auth, authorize } = require('../middleware/auth.cjs');
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.get('/', auth, async (req, res) => {
     if (req.user.role === 'guide') {
       const guide = await Guide.findOne({ user: req.user._id });
       if (guide) {
-        const Team = require('../models/Team');
+        const Team = require('../models/Team.cjs');
         const teams = await Team.find({ guide: guide._id });
         query = { team: { $in: teams.map(t => t._id) } };
       }
@@ -79,7 +79,7 @@ router.get('/:id', auth, async (req, res) => {
       }
     } else if (req.user.role === 'guide') {
       const guide = await Guide.findOne({ user: req.user._id });
-      const Team = require('../models/Team');
+      const Team = require('../models/Team.cjs');
       const team = await Team.findById(log.team._id);
       if (!guide || team.guide?.toString() !== guide._id.toString()) {
         return res.status(403).json({ message: 'Access denied' });
@@ -249,7 +249,7 @@ router.put('/:id/approval', auth, authorize('guide'), async (req, res) => {
 
     // Verify guide has permission for this team
     const guide = await Guide.findOne({ user: req.user._id });
-    const Team = require('../models/Team');
+    const Team = require('../models/Team.cjs');
     const team = await Team.findById(log.team);
     
     if (!guide || team.guide?.toString() !== guide._id.toString()) {
