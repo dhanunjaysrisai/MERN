@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { WeeklyLog } from '../../types';
+import { db } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface WeeklyLogFormProps {
-  onSubmit: (log: Omit<WeeklyLog, 'id' | 'submittedAt' | 'guideApproval'>) => void;
+  onSubmit: (log: any) => void;
   onCancel: () => void;
   teamId: string;
   currentWeek: number;
@@ -16,6 +17,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   teamId,
   currentWeek 
 }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -23,23 +25,50 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
     nextWeekPlans: '',
     challenges: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      teamId,
-      week: currentWeek,
-      title: formData.title,
-      description: formData.description,
-      completedTasks: formData.completedTasks.split('\n').filter(task => task.trim()),
-      nextWeekPlans: formData.nextWeekPlans.split('\n').filter(plan => plan.trim()),
-      challenges: formData.challenges.split('\n').filter(challenge => challenge.trim()),
-      submittedBy: 'current-user-id' // This would come from auth context
-    });
+    if (!user?.profile?.id) {
+      setError('User profile not found');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error: submitError } = await db.createWeeklyLog({
+        team_id: teamId,
+        week_number: currentWeek,
+        title: formData.title,
+        description: formData.description,
+        completed_tasks: formData.completedTasks.split('\n').filter(task => task.trim()),
+        next_week_plans: formData.nextWeekPlans.split('\n').filter(plan => plan.trim()),
+        challenges: formData.challenges.split('\n').filter(challenge => challenge.trim()),
+        submitted_by: user.profile.id
+      });
+
+      if (submitError) throw submitError;
+
+      onSubmit(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div>
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Week Number"
@@ -115,8 +144,11 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">Submit Weekly Log</Button>
+        <Button type="submit" loading={loading}>
+          Submit Weekly Log
+        </Button>
       </div>
     </form>
+    </div>
   );
 };

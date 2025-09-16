@@ -6,46 +6,89 @@ import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { WeeklyLogForm } from '../components/weekly-logs/WeeklyLogForm';
-import { WeeklyLog } from '../types';
+import { DocumentUpload } from '../components/documents/DocumentUpload';
+import { db } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const StudentDashboard: React.FC = () => {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<'overview' | 'team' | 'logs' | 'documents'>('overview');
   const [showLogForm, setShowLogForm] = useState(false);
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
-  const [weeklyLogs, setWeeklyLogs] = useState<WeeklyLog[]>([]);
+  const [weeklyLogs, setWeeklyLogs] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [myTeam, setMyTeam] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - in real app, this would come from API
-  const myTeam = {
-    id: 'team-1',
-    name: 'Web Dev Team Alpha',
-    members: [
-      { id: '1', name: 'John Doe', email: 'john@example.com', rollNumber: '21CS001', percentage: 85, domain: 'web-development', backlogs: 0, skills: ['React', 'Node.js'], teamId: 'team-1', isTeamLead: true },
-      { id: '2', name: 'Jane Smith', email: 'jane@example.com', rollNumber: '21CS002', percentage: 80, domain: 'web-development', backlogs: 1, skills: ['React', 'Python'], teamId: 'team-1' },
-      { id: '3', name: 'Bob Johnson', email: 'bob@example.com', rollNumber: '21CS003', percentage: 78, domain: 'web-development', backlogs: 0, skills: ['JavaScript', 'CSS'], teamId: 'team-1' },
-      { id: '4', name: 'Alice Brown', email: 'alice@example.com', rollNumber: '21CS004', percentage: 82, domain: 'web-development', backlogs: 0, skills: ['React', 'MongoDB'], teamId: 'team-1' }
-    ],
-    projectTitle: 'E-commerce Platform',
-    domain: 'web-development',
-    averagePercentage: 81.25
+  useEffect(() => {
+    if (user?.profile?.team_id) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user?.profile?.team_id) return;
+
+    setLoading(true);
+    try {
+      const [teamsData, logsData, documentsData] = await Promise.all([
+        db.getTeams(),
+        db.getWeeklyLogs(user.profile.team_id),
+        db.getDocuments(user.profile.team_id)
+      ]);
+
+      if (teamsData.data) {
+        const team = teamsData.data.find(t => t.id === user.profile.team_id);
+        setMyTeam(team);
+      }
+      if (logsData.data) setWeeklyLogs(logsData.data);
+      if (documentsData.data) setDocuments(documentsData.data);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmitLog = (logData: Omit<WeeklyLog, 'id' | 'submittedAt' | 'guideApproval'>) => {
-    const newLog: WeeklyLog = {
-      ...logData,
-      id: `log-${Date.now()}`,
-      submittedAt: new Date(),
-      guideApproval: false
-    };
-    setWeeklyLogs([...weeklyLogs, newLog]);
+  const handleSubmitLog = (logData: any) => {
+    setWeeklyLogs([...weeklyLogs, logData]);
     setShowLogForm(false);
+    loadData(); // Refresh data
   };
+
+  const handleUploadDocument = (documentData: any) => {
+    setDocuments([...documents, documentData]);
+    setShowDocumentUpload(false);
+    loadData(); // Refresh data
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!myTeam) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">No Team Assigned</h2>
+        <p className="text-gray-600">You haven't been assigned to a team yet. Please contact your administrator.</p>
+      </div>
+    );
+  }
 
   const renderOverview = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Team Members"
-          value={myTeam.members.length}
+          value={myTeam.members?.length || 0}
           icon={Users}
           color="blue"
         />
@@ -57,13 +100,13 @@ export const StudentDashboard: React.FC = () => {
         />
         <StatsCard
           title="Documents"
-          value={5}
+          value={documents.length}
           icon={Upload}
           color="yellow"
         />
         <StatsCard
           title="Team Average"
-          value={`${myTeam.averagePercentage}%`}
+          value={`${myTeam.average_percentage?.toFixed(1) || 0}%`}
           icon={BarChart3}
           color="red"
         />
@@ -78,7 +121,7 @@ export const StudentDashboard: React.FC = () => {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-500">Project Title</p>
-                <p className="font-medium">{myTeam.projectTitle}</p>
+                <p className="font-medium">{myTeam.project_title}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Domain</p>
@@ -90,10 +133,10 @@ export const StudentDashboard: React.FC = () => {
                   <div className="flex-1 bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${myTeam.averagePercentage}%` }}
+                      style={{ width: `${myTeam.average_percentage || 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium">{myTeam.averagePercentage}%</span>
+                  <span className="text-sm font-medium">{myTeam.average_percentage?.toFixed(1) || 0}%</span>
                 </div>
               </div>
             </div>
@@ -113,6 +156,7 @@ export const StudentDashboard: React.FC = () => {
               Submit Weekly Log
             </Button>
             <Button 
+              onClick={() => setShowDocumentUpload(true)}
               className="w-full justify-start"
               variant="outline"
             >
@@ -139,17 +183,17 @@ export const StudentDashboard: React.FC = () => {
       <Card>
         <CardHeader>
           <h3 className="text-lg font-semibold">{myTeam.name}</h3>
-          <p className="text-gray-600">{myTeam.projectTitle}</p>
+          <p className="text-gray-600">{myTeam.project_title}</p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myTeam.members.map(member => (
+            {myTeam.members?.map((member: any) => (
               <div key={member.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium">{member.name}</h4>
-                  {member.isTeamLead && <Badge variant="primary">Team Lead</Badge>}
+                  <h4 className="font-medium">{member.profiles?.full_name}</h4>
+                  {member.is_team_lead && <Badge variant="primary">Team Lead</Badge>}
                 </div>
-                <p className="text-sm text-gray-600">{member.rollNumber}</p>
+                <p className="text-sm text-gray-600">{member.roll_number}</p>
                 <p className="text-sm text-gray-600">{member.percentage}%</p>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {member.skills.map(skill => (
@@ -159,7 +203,7 @@ export const StudentDashboard: React.FC = () => {
                   ))}
                 </div>
               </div>
-            ))}
+            )) || []}
           </div>
         </CardContent>
       </Card>
@@ -192,14 +236,29 @@ export const StudentDashboard: React.FC = () => {
         </Card>
       )}
 
+      {showDocumentUpload && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Upload Document</h3>
+          </CardHeader>
+          <CardContent>
+            <DocumentUpload
+              teamId={myTeam.id}
+              onUpload={handleUploadDocument}
+              onCancel={() => setShowDocumentUpload(false)}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-4">
         {weeklyLogs.map(log => (
           <Card key={log.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Week {log.week}: {log.title}</h3>
-                <Badge variant={log.guideApproval ? 'success' : 'warning'}>
-                  {log.guideApproval ? 'Approved' : 'Pending'}
+                <h3 className="font-semibold">Week {log.week_number}: {log.title}</h3>
+                <Badge variant={log.guide_approval ? 'success' : 'warning'}>
+                  {log.guide_approval ? 'Approved' : 'Pending'}
                 </Badge>
               </div>
             </CardHeader>
@@ -209,7 +268,7 @@ export const StudentDashboard: React.FC = () => {
                 <div>
                   <h4 className="font-medium mb-2">Completed Tasks</h4>
                   <ul className="text-sm space-y-1">
-                    {log.completedTasks.map((task, index) => (
+                    {log.completed_tasks?.map((task: string, index: number) => (
                       <li key={index}>• {task}</li>
                     ))}
                   </ul>
@@ -217,7 +276,7 @@ export const StudentDashboard: React.FC = () => {
                 <div>
                   <h4 className="font-medium mb-2">Next Week Plans</h4>
                   <ul className="text-sm space-y-1">
-                    {log.nextWeekPlans.map((plan, index) => (
+                    {log.next_week_plans?.map((plan: string, index: number) => (
                       <li key={index}>• {plan}</li>
                     ))}
                   </ul>
@@ -230,6 +289,65 @@ export const StudentDashboard: React.FC = () => {
                     ))}
                   </ul>
                 </div>
+              </div>
+              {log.guide_feedback && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-1">Guide Feedback</h4>
+                  <p className="text-blue-800 text-sm">{log.guide_feedback}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderDocuments = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Documents</h2>
+        <Button onClick={() => setShowDocumentUpload(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Upload Document
+        </Button>
+      </div>
+
+      {showDocumentUpload && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Upload New Document</h3>
+          </CardHeader>
+          <CardContent>
+            <DocumentUpload
+              teamId={myTeam.id}
+              onUpload={handleUploadDocument}
+              onCancel={() => setShowDocumentUpload(false)}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {documents.map(doc => (
+          <Card key={doc.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium">{doc.name}</h4>
+                <Badge variant="secondary">{doc.type}</Badge>
+              </div>
+              <p className="text-sm text-gray-600 mb-2">
+                Uploaded by {doc.uploaded_by_student?.profiles?.full_name}
+              </p>
+              <p className="text-sm text-gray-500 mb-3">
+                {new Date(doc.created_at).toLocaleDateString()}
+              </p>
+              {doc.description && (
+                <p className="text-sm text-gray-600 mb-3">{doc.description}</p>
+              )}
+              <div className="flex justify-between items-center text-xs text-gray-500">
+                <span>{(doc.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                <span>v{doc.version}</span>
               </div>
             </CardContent>
           </Card>
@@ -245,7 +363,7 @@ export const StudentDashboard: React.FC = () => {
       case 'logs':
         return renderLogs();
       case 'documents':
-        return <div>Documents view coming soon...</div>;
+        return renderDocuments();
       default:
         return renderOverview();
     }
@@ -280,7 +398,7 @@ export const StudentDashboard: React.FC = () => {
         <TeamDetailsModal
           team={selectedTeam}
           onClose={() => setSelectedTeam(null)}
-          userRole="team_lead"
+          userRole={user?.role || 'student'}
         />
       )}
     </div>

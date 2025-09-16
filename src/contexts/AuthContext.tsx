@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import { auth, db } from '../lib/supabase';
 
 interface User {
   id: string;
@@ -20,51 +20,61 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Configure axios defaults
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-axios.defaults.baseURL = API_BASE_URL;
-
-// Add token to requests
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle token expiration
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/';
-    }
-    return Promise.reject(error);
-  }
-);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetchUser();
-    } else {
+    // Check for existing session
+    auth.getCurrentUser().then(({ user: authUser }) => {
+      if (authUser) {
+        fetchUserProfile(authUser.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await fetchUserProfile(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
       setLoading(false);
-    }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUser = async () => {
+  const fetchUserProfile = async (userId: string) => {
     try {
-      const response = await axios.get('/auth/me');
-      setUser(response.data);
+      const { data: profile, error } = await db.getProfile(userId);
+      if (error) throw error;
+
+      if (profile) {
+        let roleProfile = null;
+        
+        // Get role-specific profile data
+        if (profile.role === 'student' || profile.role === 'team_lead') {
+          const { data } = await db.getStudentByUserId(userId);
+          roleProfile = data;
+        } else if (profile.role === 'guide') {
+          const { data } = await db.getGuideByUserId(userId);
+          roleProfile = data;
+        }
+
+        setUser({
+          id: profile.id,
+          name: profile.full_name,
+          email: profile.email,
+          role: profile.role,
+          profile: roleProfile
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      localStorage.removeItem('token');
+      console.error('Failed to fetch user profile:', error);
     } finally {
       setLoading(false);
     }
@@ -72,31 +82,69 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axios.post('/auth/login', { email, password });
-      const { token, user } = response.data;
+      const { data, error } = await auth.signIn(email, password);
+      if (error) throw error;
       
-      localStorage.setItem('token', token);
-      setUser(user);
+      if (data.user) {
+        await fetchUserProfile(data.user.id);
+      }
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Login failed');
+      throw new Error(error.message || 'Login failed');
     }
   };
 
   const register = async (userData: any) => {
     try {
-      const response = await axios.post('/auth/register', userData);
-      const { token, user } = response.data;
+      const { name, email, password, role, ...profileData } = userData;
       
-      localStorage.setItem('token', token);
-      setUser(user);
+      // Sign up user
+      const { data: authData, error: authError } = await auth.signUp(email, password, {
+        full_name: name,
+        role: role
+      });
+      
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Registration failed');
+
+      // Create role-specific profile
+      if (role === 'student' || role === 'team_lead') {
+        const { error: studentError } = await db.createStudent({
+          user_id: authData.user.id,
+          roll_number: profileData.rollNumber,
+          percentage: profileData.backlogs > 0 ? 0 : profileData.percentage,
+          domain: profileData.domain,
+          backlogs: profileData.backlogs,
+          skills: profileData.skills || [],
+          academic_year: profileData.academicYear,
+          department: profileData.department
+        });
+        if (studentError) throw studentError;
+      } else if (role === 'guide') {
+        const { error: guideError } = await db.createGuide({
+          user_id: authData.user.id,
+          department: profileData.department,
+          expertise: profileData.expertise || [],
+          max_teams: profileData.maxTeams || 3,
+          qualification: profileData.qualification,
+          experience: profileData.experience || 0
+        });
+        if (guideError) throw guideError;
+      }
+
+      // Fetch complete profile
+      await fetchUserProfile(authData.user.id);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Registration failed');
+      throw new Error(error.message || 'Registration failed');
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const logout = async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const updateUser = (userData: Partial<User>) => {

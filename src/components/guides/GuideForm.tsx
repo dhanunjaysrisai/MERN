@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
-import { Guide } from '../../types';
+import { db, auth } from '../../lib/supabase';
 
 interface GuideFormProps {
-  onSubmit: (guide: Omit<Guide, 'id' | 'currentTeams' | 'assignedTeamIds'>) => void;
+  onSubmit: (guide: any) => void;
   onCancel: () => void;
 }
 
@@ -13,18 +13,53 @@ export const GuideForm: React.FC<GuideFormProps> = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: 'defaultpass123', // Default password for demo
     department: '',
     expertise: '',
-    maxTeams: '3'
+    maxTeams: '3',
+    qualification: '',
+    experience: '0'
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      ...formData,
-      maxTeams: parseInt(formData.maxTeams),
-      expertise: formData.expertise.split(',').map(skill => skill.trim())
-    });
+    setLoading(true);
+    setError('');
+
+    try {
+      // Create user account
+      const { data: authData, error: authError } = await auth.signUp(
+        formData.email,
+        formData.password,
+        {
+          full_name: formData.name,
+          role: 'guide'
+        }
+      );
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user');
+
+      // Create guide profile
+      const { data: guideData, error: guideError } = await db.createGuide({
+        user_id: authData.user.id,
+        department: formData.department,
+        expertise: formData.expertise.split(',').map(skill => skill.trim()).filter(s => s),
+        max_teams: parseInt(formData.maxTeams),
+        qualification: formData.qualification,
+        experience: parseInt(formData.experience)
+      });
+
+      if (guideError) throw guideError;
+
+      onSubmit(guideData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const departmentOptions = [
@@ -38,7 +73,14 @@ export const GuideForm: React.FC<GuideFormProps> = ({ onSubmit, onCancel }) => {
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div>
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Full Name"
@@ -72,6 +114,23 @@ export const GuideForm: React.FC<GuideFormProps> = ({ onSubmit, onCancel }) => {
           onChange={(e) => setFormData({ ...formData, maxTeams: e.target.value })}
           required
         />
+        
+        <Input
+          label="Qualification"
+          value={formData.qualification}
+          onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+          placeholder="Ph.D, M.Tech, etc."
+          required
+        />
+        
+        <Input
+          label="Experience (years)"
+          type="number"
+          min="0"
+          value={formData.experience}
+          onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+          required
+        />
       </div>
       
       <Input
@@ -87,8 +146,11 @@ export const GuideForm: React.FC<GuideFormProps> = ({ onSubmit, onCancel }) => {
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">Add Guide</Button>
+        <Button type="submit" loading={loading}>
+          Add Guide
+        </Button>
       </div>
     </form>
+    </div>
   );
 };
