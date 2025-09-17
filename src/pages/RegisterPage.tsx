@@ -37,6 +37,13 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
     setError('');
 
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
