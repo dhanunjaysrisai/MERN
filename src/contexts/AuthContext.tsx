@@ -98,20 +98,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { name, email, password, role, ...profileData } = userData;
       
       // Sign up user
-      const { data: authData, error: authError } = await auth.signUp(email, password);
+      const { data: authData, error: authError } = await auth.signUp(email, password, {
+        data: {
+          full_name: name,
+          role: role
+        }
+      });
       
       if (authError) throw authError;
       if (!authData.user) throw new Error('Registration failed');
 
-      // Create user profile
-      const { error: profileError } = await db.createProfile({
-        id: authData.user.id,
-        email: email,
-        full_name: name,
-        role: role
-      });
-      
-      if (profileError) throw profileError;
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Create role-specific profile
       if (role === 'student' || role === 'team_lead') {
