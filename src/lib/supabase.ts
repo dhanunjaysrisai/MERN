@@ -12,13 +12,10 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Auth helpers
 export const auth = {
-  signUp: async (email: string, password: string, userData: any) => {
+  signUp: async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
-      password,
-      options: {
-        data: userData
-      }
+      password
     });
     return { data, error };
   },
@@ -63,6 +60,15 @@ export const db = {
       .from('profiles')
       .update(updates)
       .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  createProfile: async (profileData: any) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(profileData)
       .select()
       .single();
     return { data, error };

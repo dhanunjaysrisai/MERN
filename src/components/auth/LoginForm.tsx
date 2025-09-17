@@ -17,10 +17,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate login delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
     onLogin(email, password, role);
     setLoading(false);
   };
@@ -86,11 +82,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Demo Credentials: Any email/password combination works
-            </p>
-          </div>
         </div>
       </div>
     </div>

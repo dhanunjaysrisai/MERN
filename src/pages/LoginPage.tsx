@@ -89,11 +89,6 @@ export const LoginPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="mt-4 text-center">
-            <p className="text-xs text-gray-500">
-              Please register first or use valid Supabase credentials
-            </p>
-          </div>
         </div>
       </div>
     </div>
