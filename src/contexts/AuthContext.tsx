@@ -20,7 +20,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { name, email, password, role, ...profileData } = userData;
       
-      // Sign up user
+      // Sign up user with metadata
       const { data: authData, error: authError } = await auth.signUp(email, password, {
         data: {
           full_name: name,
@@ -108,8 +107,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (authError) throw authError;
       if (!authData.user) throw new Error('Registration failed');
 
-      // Wait a moment for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Create role-specific profile
       if (role === 'student' || role === 'team_lead') {

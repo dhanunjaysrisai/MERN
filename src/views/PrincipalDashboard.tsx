@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, BarChart3, Plus, Zap, UserCheck } from 'lucide-react';
 import { StatsCard } from '../components/dashboard/StatsCard';
 import { Button } from '../components/ui/Button';

@@ -30,6 +30,13 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onSubmit, onCancel }) 
     setLoading(true);
     setError('');
 
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Create user account
       const { data: authData, error: authError } = await auth.signUp(

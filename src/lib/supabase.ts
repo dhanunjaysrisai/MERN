@@ -66,15 +66,6 @@ export const db = {
     return { data, error };
   },
 
-  createProfile: async (profileData: any) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert(profileData)
-      .select()
-      .single();
-    return { data, error };
-  },
-
   // Students
   getStudents: async () => {
     const { data, error } = await supabase

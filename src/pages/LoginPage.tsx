@@ -87,6 +87,12 @@ export const LoginPage: React.FC = () => {
                 Register here
               </Link>
             </p>
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700">
+                <strong>Note:</strong> You need to register first to create an account. 
+                Use a valid email and password (minimum 6 characters).
+              </p>
+            </div>
           </div>
 
         </div>
